@@ -3,7 +3,12 @@
 //
 // Author: Adwin de Mooij
 //
-// Version: 1.0 | 20-10-2022
+// Change Log:
+// Version: 1.0.1 | 20-10-2022
+// Removed myCropmarksBoxWidth from alert after script completes.
+// 
+//
+// Version: 1.0.0 | 20-10-2022
 // First release. 
 //
 // #target "InDesign"
@@ -147,7 +152,7 @@ function createDialog(myImages){
 function myMakeDocument(files, copiesPerImage, imageWidth, imageHeight, imageBleed, fittingOption, cropmarksLength, cropmarksOffset, cropmarksStrokeWeight) {
     // Document variables.
     var myDocument = app.activeDocument;
-    myDocument.documentPreferences.pagesPerDocument = 1; // Set initial page count to 1
+    myDocument.documentPreferences.pagesPerDocument = 1; // Set initial page count to 1.
 
     // Get page width and height from current document.
     var myPageWidth = Math.round(myDocument.documentPreferences.pageWidth * 10) / 10;
@@ -197,11 +202,11 @@ function myMakeDocument(files, copiesPerImage, imageWidth, imageHeight, imageBle
     myTotalNumberOfPages = pagesPerImagesCopies * myNumberOfImages;
 
     // Calculate gutters based on page size.
-    var singleColumnGutter = (myPageWidth - myCropmarksBoxWidth) / 2;  // Used when a page can only fits a single image.
-    var singleRowGutter = (myPageHeight - myCropmarksBoxHeight) / 2;   // Used when a page can only fits a single image.
+    var singleColumnGutter = (myPageWidth - myCropmarksBoxWidth) / 2;  // Used when a page only fits a single image.
+    var singleRowGutter = (myPageHeight - myCropmarksBoxHeight) / 2;   // Used when a page only fits a single image.
 
-    var imageColumnGutter = (myPageWidth - (maxColumns * myCropmarksBoxWidth)) / (maxColumns - 1);  // Used when a page can fit fit multiple images.
-    var imageRowGutter = (myPageHeight - (maxRows * myCropmarksBoxHeight)) / (maxRows -1);          // Used when a page can fit fit multiple images.
+    var imageColumnGutter = (myPageWidth - (maxColumns * myCropmarksBoxWidth)) / (maxColumns - 1);  // Used when a page fit fit multiple images.
+    var imageRowGutter = (myPageHeight - (maxRows * myCropmarksBoxHeight)) / (maxRows -1);          // Used when a page fit fit multiple images.
 
     with(myDocument) {
         for(var pageCounter = 0; pageCounter < myTotalNumberOfPages; pageCounter++) {
@@ -295,7 +300,7 @@ function myMakeDocument(files, copiesPerImage, imageWidth, imageHeight, imageBle
     }
 
     // Notify the user the script completed succesfully.
-    alert("Action succesfull!" + "\n" + myCropmarksBoxWidth);
+    alert("Action succesfull!");
     
 }
 
