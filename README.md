@@ -18,7 +18,7 @@ Once you select the script, a dialog with your system's file browser will open.
 You can select one or more files as input for the script.  
 The script is meant to work using .JPEG, .JPG, .PNG, and/or .PSD file extensions.  
 
-_Up to version 1.0.0 a file extension filter is not yet implemented._  
+_Up to version 1.0.1 a file extension filter is not yet implemented._  
 _Selecting other file extensions may result in unexpected behaviour._  
 
 ### Set image dimensions
