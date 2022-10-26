@@ -4,12 +4,16 @@
 // Author: Adwin de Mooij
 //
 // Change Log:
-// Version: 1.0.1 | 20-10-2022
-// Removed myCropmarksBoxWidth from alert after script completes.
+// Version: 2.0.0 | 26-10-2022
+// Added: optimizeOrientation function which changes the page orientation to fit the most images on a single page.
+// Added: dialog checkbox for users to choose if they want the script to calculate and set the optimized orientation or to keep using the current page orientation.
 // 
+// Change: convertValueToDocumentMeasurementUnits function to use a switch-statement instead of an if-statement for improved readability.
+// Change: README to include description of optimizeOrientation option.
+// Change: README to include correct versioning system.
 //
-// Version: 1.0.0 | 20-10-2022
-// First release. 
+// Version: 1.0.0 | 26-10-2022
+// First release.
 //
 // #target "InDesign"
 
@@ -41,9 +45,11 @@ function selectFiles() {
 function createDialog(myImages){
     var myDialog = app.dialogs.add({name:"Image importer", canCancel:true});
     var myDocument = app.activeDocument;
+    var totalSelectedImages = myImages.length;
 
     var currentMeasurementUnits = myDocument.viewPreferences.horizontalMeasurementUnits;
-
+    
+    // TODO: Remove with-statements (deprecated).
     with(myDialog.dialogColumns.add()) {
         
         with(dialogRows.add()) {
@@ -55,7 +61,6 @@ function createDialog(myImages){
         with(dialogRows.add()) {
             with(borderPanels.add()) {
                 with(dialogColumns.add()) {
-                    var totalSelectedImages = myImages.length;
                     staticTexts.add({staticLabel:"You selected " + totalSelectedImages + " images."});
                     // Gets path of selected images for testing purposes.
                     // for(var i = 0; i < myImages.length; i++) {
@@ -80,6 +85,7 @@ function createDialog(myImages){
                     staticTexts.add({staticLabel:"Image Bleed:"});
                     staticTexts.add({staticLabel:"Total Copies Per Image:"});
                     staticTexts.add({staticLabel:"Image Frame Filling:"});
+                    staticTexts.add({staticLabel:"Optimize Page Orientation:"});
                 }
 
                 with(dialogColumns.add()) {
@@ -88,6 +94,7 @@ function createDialog(myImages){
                     var myImageBleedField = measurementEditboxes.add({editUnits:currentMeasurementUnits,editValue:8.50393701}); // editValue is interprated in POINTS.
                     var myCopiesPerImageField = integerEditboxes.add();
                     var myImageFrameFittingOptions = dropdowns.add({stringList:["Center Content", "Content To Frame", "Fill Proportionally", "Proportionally"], selectedIndex:2});
+                    var myOptimizePageOrientationOption = checkboxControls.add({checkedState:true});
                 }
             }
         }
@@ -131,6 +138,7 @@ function createDialog(myImages){
         var imageBleed = convertValueToDocumentMeasurementUnits(myImageBleedField.editValue);      // Convert POINTS value (default measurement units for scripts) to document measurement units.
         var copiesPerImage = myCopiesPerImageField.editValue;
         var fittingOption =myImageFrameFittingOptions.selectedIndex;
+        var optimizeOrientation = myOptimizePageOrientationOption.checkedState;
 
         // Save cropmarks options/values in variables.
         var cropmarksLength = convertValueToDocumentMeasurementUnits(myCropmarksLengthField.editValue);
@@ -141,7 +149,7 @@ function createDialog(myImages){
         myDialog.destroy();
 
         // Function to execute when dialog is closed.
-        myMakeDocument(myImageFiles, copiesPerImage, imageWidth, imageHeight, imageBleed, fittingOption, cropmarksLength, cropmarksOffset, cropmarksStrokeWeight);
+        myMakeDocument(myImageFiles, copiesPerImage, imageWidth, imageHeight, imageBleed, fittingOption, optimizeOrientation, cropmarksLength, cropmarksOffset, cropmarksStrokeWeight);
     }
     else { // Function to execute when dialog button 'CANCEL' is clicked.
         // Remove the dialog box from memory.
@@ -149,14 +157,10 @@ function createDialog(myImages){
     }
 }
 
-function myMakeDocument(files, copiesPerImage, imageWidth, imageHeight, imageBleed, fittingOption, cropmarksLength, cropmarksOffset, cropmarksStrokeWeight) {
-    // Document variables.
+function myMakeDocument(files, copiesPerImage, imageWidth, imageHeight, imageBleed, fittingOption, optimizeOrientation, cropmarksLength, cropmarksOffset, cropmarksStrokeWeight) {
+   // Document variables.
     var myDocument = app.activeDocument;
     myDocument.documentPreferences.pagesPerDocument = 1; // Set initial page count to 1.
-
-    // Get page width and height from current document.
-    var myPageWidth = Math.round(myDocument.documentPreferences.pageWidth * 10) / 10;
-    var myPageHeight = Math.round(myDocument.documentPreferences.pageHeight * 10) / 10;
     
     // Image variables.
     var myNumberOfImages = files.length;
@@ -166,6 +170,15 @@ function myMakeDocument(files, copiesPerImage, imageWidth, imageHeight, imageBle
     var myCropmarksBoxHeight = Math.round((imageHeight + (2 * cropmarksLength) + (2 * cropmarksOffset)) * 10) / 10;
     var myCropmarksImageBoxHeightDifference = (myCropmarksBoxHeight - myImageRectangleHeight) / 2;
     var myCropmarksImageBoxWidthDifference = (myCropmarksBoxWidth - myImageRectangleWidth) / 2;
+
+    // Optimize page orientation if optimizeOrientation is TRUE.
+    if(optimizeOrientation === true) {
+        setOptimizedOrientation(myCropmarksBoxWidth, myCropmarksBoxHeight);
+    }
+
+    // Get page width and height from current document.
+    var myPageWidth = Math.round(myDocument.documentPreferences.pageWidth * 10) / 10;
+    var myPageHeight = Math.round(myDocument.documentPreferences.pageHeight * 10) / 10;
 
     // Undefined variables.
     var maxColumns, maxRows, myTotalNumberOfPages, maxImagePerPage, imageRow, imageColumn;
@@ -306,31 +319,72 @@ function myMakeDocument(files, copiesPerImage, imageWidth, imageHeight, imageBle
 
 function convertValueToDocumentMeasurementUnits(value) {
     var myDocument = app.activeDocument;
-    var currentDocumentHorizontalMeasurementSettings = myDocument.viewPreferences.horizontalMeasurementUnits;
-    var currentDocumentVerticalMeasurementSettings = myDocument.viewPreferences.verticalMeasurementUnits;
-
+    var currentDocumentHorizontalMeasurementSettings = String(myDocument.viewPreferences.horizontalMeasurementUnits); // This script assumes horizontal units are equal to vertical units.
+    
     var result;
 
     // Get measurement units from document preferences of current document and convert POINTS (default units for scripts) to selected measurement units.
-    if(currentDocumentHorizontalMeasurementSettings === MeasurementUnits.POINTS && currentDocumentVerticalMeasurementSettings === MeasurementUnits.POINTS) {
-        result = value; // Default units for scripts is POINTS, no conversion of value neccesary.
-    } else if(currentDocumentHorizontalMeasurementSettings === MeasurementUnits.PICAS && currentDocumentVerticalMeasurementSettings === MeasurementUnits.PICAS) {
-        result = value * 0.0833333333; // 1 POINTS equals 1 PICAS.
-    } else if(currentDocumentHorizontalMeasurementSettings === MeasurementUnits.INCHES && currentDocumentVerticalMeasurementSettings === MeasurementUnits.INCHES) {
-        result = value * 0.0138888889; // 1 POINTS equals 1 INCHES.
-    } else if(currentDocumentHorizontalMeasurementSettings === MeasurementUnits.MILLIMETERS && currentDocumentVerticalMeasurementSettings === MeasurementUnits.MILLIMETERS) {
-        result = value * 0.352777778; // 1 POINTS equals 0.352777778 MILLIMETERS.
-    } else if(currentDocumentHorizontalMeasurementSettings === MeasurementUnits.CENTIMETERS && currentDocumentVerticalMeasurementSettings === MeasurementUnits.CENTIMETERS) {
-        result = value * 0.0352777778; // 1 POINTS equals 0.0352777778 CENTIMETERS.
-    } else if(currentDocumentHorizontalMeasurementSettings === MeasurementUnits.CICEROS && currentDocumentVerticalMeasurementSettings === MeasurementUnits.CICEROS) {
-        result = value * 0.0781923408; // 1 POINTS equals 0.0781923408 CICEROS.
-    } else if(currentDocumentHorizontalMeasurementSettings === MeasurementUnits.AGATES && currentDocumentVerticalMeasurementSettings === MeasurementUnits.AGATES) {
-        result = value * 0.19444444444444609; // 1 POINTS equals 0.19444444444444609 AGATES.
-    } else if(currentDocumentHorizontalMeasurementSettings === MeasurementUnits.PIXELS && currentDocumentVerticalMeasurementSettings === MeasurementUnits.PIXELS) {
-        result = value * 1; // 1 POINTS equals 1 PIXELS (In InDesign PIXELS are treated as equivelant to POINTS).
+    switch(currentDocumentHorizontalMeasurementSettings) {
+        case 'PICAS':
+            result = value * 0.0833333333; // 1 POINTS equals 0.0833333333 PICAS.
+            break;
+
+        case 'INCHES':
+            result = value * 0.0138888889; // 1 POINTS equals 0.0138888889 INCHES.
+            break;
+
+        case 'MILLIMETERS':
+            result = value * 0.352777778; // 1 POINTS equals 0.352777778 MILLIMETERS.
+            break;
+
+        case 'CENTIMETERS':
+            result = value * 0.0352777778; // 1 POINTS equals 0.0352777778 CENTIMETERS.
+            break;
+
+        case 'CICEROS':
+            result = value * 0.0781923408; // 1 POINTS equals 0.0781923408 CICEROS.
+            break;
+
+        case 'AGATES':
+            result = value * 0.19444444444444609; // 1 POINTS equals 0.19444444444444609 AGATES.
+            break;
+
+        case 'PIXELS':
+            result = value * 1; // 1 POINTS equals 1 PIXELS (In InDesign PIXELS are treated as equivelant to POINTS).
+            break;
+
+        default:
+            result = value; // Default units for scripts is POINTS, no conversion of value neccesary.
     }
 
     return result;
+}
+
+// Select optimized page orientation based on image height and width.
+function setOptimizedOrientation(cropmarkBoxWidth, cropmarkBoxHeight) {
+    var myDocument = app.activeDocument;
+    var currentDocumentOrientation = myDocument.documentPreferences.pageOrientation;
+
+    var currentPageHeight = myDocument.documentPreferences.pageHeight;
+    var currentPageWidth = myDocument.documentPreferences.pageWidth;
+
+    var alternatePageHeight = myDocument.documentPreferences.pageWidth;
+    var alternatePageWidth = myDocument.documentPreferences.pageHeight;
+
+    currentMaxRows = Math.floor(currentPageHeight / cropmarkBoxHeight);
+    alternateMaxRows = Math.floor(alternatePageHeight / cropmarkBoxHeight);
+
+    currentMaxColumns = Math.floor(currentPageWidth / cropmarkBoxWidth);
+    alternateMaxColumns = Math.floor(alternatePageWidth / cropmarkBoxWidth);
+
+    var currentMaxImages = currentMaxRows * currentMaxColumns;
+    var alternateMaxImages = alternateMaxRows * alternateMaxColumns;
+
+    if(String(currentDocumentOrientation) === 'PORTRAIT' && alternateMaxImages > currentMaxImages) {
+        myDocument.documentPreferences.pageOrientation = PageOrientation.LANDSCAPE;
+    } else if (String(currentDocumentOrientation) == 'LANDSCAPE' && alternateMaxImages > currentMaxImages) {
+        myDocument.documentPreferences.pageOrientation = PageOrientation.PORTRAIT;
+    }
 }
 
 // Draw cropmarks around myCropmarksRectangle.
